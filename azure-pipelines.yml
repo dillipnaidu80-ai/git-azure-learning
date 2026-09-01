@@ -6,6 +6,10 @@ pool:
 
 stages:
 
+# =========================
+# BUILD
+# =========================
+
 - stage: Build
   displayName: Build and Test
 
@@ -43,3 +47,93 @@ stages:
         targetPath: '$(Build.ArtifactStagingDirectory)/python-app.zip'
         artifact: 'python-app'
       displayName: 'Publish artifact'
+
+
+# =========================
+# DEV
+# =========================
+
+- stage: Deploy_DEV
+  displayName: Deploy to DEV
+  dependsOn: Build
+
+  jobs:
+
+  - deployment: DeployDEV
+    displayName: Deploy Python App to DEV
+
+    environment: DEV
+
+    strategy:
+      runOnce:
+        deploy:
+
+          steps:
+
+          - download: current
+            artifact: python-app
+
+          - script: |
+              echo "Deploying python-app.zip to DEV"
+              ls -R $(Pipeline.Workspace)/python-app
+            displayName: 'Deploy to DEV'
+
+
+# =========================
+# QA
+# =========================
+
+- stage: Deploy_QA
+  displayName: Deploy to QA
+  dependsOn: Deploy_DEV
+
+  jobs:
+
+  - deployment: DeployQA
+    displayName: Deploy Python App to QA
+
+    environment: QA
+
+    strategy:
+      runOnce:
+        deploy:
+
+          steps:
+
+          - download: current
+            artifact: python-app
+
+          - script: |
+              echo "Deploying python-app.zip to QA"
+              ls -R $(Pipeline.Workspace)/python-app
+            displayName: 'Deploy to QA'
+
+
+# =========================
+# PROD
+# =========================
+
+- stage: Deploy_PROD
+  displayName: Deploy to PROD
+  dependsOn: Deploy_QA
+
+  jobs:
+
+  - deployment: DeployPROD
+    displayName: Deploy Python App to PROD
+
+    environment: PROD
+
+    strategy:
+      runOnce:
+        deploy:
+
+          steps:
+
+          - download: current
+            artifact: python-app
+
+          - script: |
+              echo "Deploying python-app.zip to PROD"
+              ls -R $(Pipeline.Workspace)/python-app
+            displayName: 'Deploy to PROD'
