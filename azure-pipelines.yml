@@ -8,13 +8,13 @@ stages:
 
 # ============================================================
 # BUILD
-# Automatically runs when code is pushed to main
 # ============================================================
 
 - stage: Build
   displayName: Build and Test
 
   jobs:
+
   - job: BuildTest
     displayName: Build Python Application
 
@@ -30,11 +30,18 @@ stages:
         versionSpec: '3.13'
 
     # --------------------------------------------------------
-    # Install dependencies
+    # Upgrade pip
     # --------------------------------------------------------
 
     - script: |
         python -m pip install --upgrade pip
+      displayName: 'Upgrade pip'
+
+    # --------------------------------------------------------
+    # Install dependencies
+    # --------------------------------------------------------
+
+    - script: |
         pip install -r requirements.txt
       displayName: 'Install dependencies'
 
@@ -47,7 +54,7 @@ stages:
       displayName: 'Run tests'
 
     # --------------------------------------------------------
-    # Create ZIP artifact
+    # Create deployment ZIP
     # --------------------------------------------------------
 
     - task: ArchiveFiles@2
@@ -68,96 +75,3 @@ stages:
       inputs:
         targetPath: '$(Build.ArtifactStagingDirectory)/python-app.zip'
         artifact: python-app
-
-
-# ============================================================
-# DEV
-# ============================================================
-
-- stage: Deploy_DEV
-  displayName: Deploy to DEV
-  dependsOn: Build
-
-  jobs:
-  - deployment: DeployDEV
-    displayName: Deploy Python App to DEV
-
-    environment: DEV
-
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - download: current
-            artifact: python-app
-
-          - task: AzureWebApp@1
-            displayName: 'Deploy to DEV App Service'
-            inputs:
-              azureSubscription: 'DillipK'
-              appType: 'webAppLinux'
-              appName: 'YOUR-DEV-APP-SERVICE-NAME'
-              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
-
-
-# ============================================================
-# QA
-# ============================================================
-
-- stage: Deploy_QA
-  displayName: Deploy to QA
-  dependsOn: Deploy_DEV
-
-  jobs:
-  - deployment: DeployQA
-    displayName: Deploy Python App to QA
-
-    environment: QA
-
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - download: current
-            artifact: python-app
-
-          - task: AzureWebApp@1
-            displayName: 'Deploy to QA App Service'
-            inputs:
-              azureSubscription: 'DillipK'
-              appType: 'webAppLinux'
-              appName: 'YOUR-QA-APP-SERVICE-NAME'
-              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
-
-
-# ============================================================
-# PROD
-# ============================================================
-
-- stage: Deploy_PROD
-  displayName: Deploy to PROD
-  dependsOn: Deploy_QA
-
-  jobs:
-  - deployment: DeployPROD
-    displayName: Deploy Python App to PROD
-
-    environment: PROD
-
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-
-          - download: current
-            artifact: python-app
-
-          - task: AzureWebApp@1
-            displayName: 'Deploy to PROD App Service'
-            inputs:
-              azureSubscription: 'DillipK'
-              appType: 'webAppLinux'
-              appName: 'YOUR-PROD-APP-SERVICE-NAME'
-              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
