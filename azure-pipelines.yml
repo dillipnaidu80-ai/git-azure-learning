@@ -6,9 +6,9 @@ pool:
 
 stages:
 
-# =========================
+# ============================================================
 # BUILD
-# =========================
+# ============================================================
 
 - stage: Build
   displayName: Build and Test
@@ -16,46 +16,75 @@ stages:
   jobs:
 
   - job: BuildTest
+    displayName: Build Python Application
 
     steps:
 
+    # --------------------------------------------------------
+    # Setup Python
+    # --------------------------------------------------------
+
     - task: UsePythonVersion@0
+      displayName: 'Use Python 3.13'
       inputs:
         versionSpec: '3.13'
-      displayName: 'Use Python 3.13'
+
+    # --------------------------------------------------------
+    # Upgrade pip
+    # --------------------------------------------------------
 
     - script: |
         python -m pip install --upgrade pip
+      displayName: 'Upgrade pip'
+
+    # --------------------------------------------------------
+    # Install dependencies
+    # --------------------------------------------------------
+
+    - script: |
         pip install -r requirements.txt
       displayName: 'Install dependencies'
+
+    # --------------------------------------------------------
+    # Run tests
+    # --------------------------------------------------------
 
     - script: |
         pytest
       displayName: 'Run tests'
 
+    # --------------------------------------------------------
+    # Create deployment ZIP
+    # --------------------------------------------------------
+
     - task: ArchiveFiles@2
+      displayName: 'Create deployment package'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/python-app.zip'
         replaceExistingArchive: true
-      displayName: 'Create deployment package'
+
+    # --------------------------------------------------------
+    # Publish artifact
+    # --------------------------------------------------------
 
     - task: PublishPipelineArtifact@1
+      displayName: 'Publish Python application artifact'
       inputs:
         targetPath: '$(Build.ArtifactStagingDirectory)/python-app.zip'
         artifact: 'python-app'
-      displayName: 'Publish artifact'
 
 
-# =========================
-# DEV
-# =========================
+# ============================================================
+# DEPLOY TO DEV
+# ============================================================
 
 - stage: Deploy_DEV
   displayName: Deploy to DEV
   dependsOn: Build
+  condition: succeeded()
 
   jobs:
 
@@ -70,22 +99,34 @@ stages:
 
           steps:
 
+          # --------------------------------------------------
+          # Download build artifact
+          # --------------------------------------------------
+
           - download: current
             artifact: python-app
 
-          - script: |
-              echo "Deploying python-app.zip to DEV"
-              ls -R $(Pipeline.Workspace)/python-app
-            displayName: 'Deploy to DEV'
+          # --------------------------------------------------
+          # Deploy to Azure App Service
+          # --------------------------------------------------
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to DEV Azure App Service'
+            inputs:
+              azureSubscription: 'CHANGE_ME_AZURE_SERVICE_CONNECTION'
+              appType: 'webAppLinux'
+              appName: 'CHANGE_ME_DEV_APP_SERVICE_NAME'
+              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
 
 
-# =========================
-# QA
-# =========================
+# ============================================================
+# DEPLOY TO QA
+# ============================================================
 
 - stage: Deploy_QA
   displayName: Deploy to QA
   dependsOn: Deploy_DEV
+  condition: succeeded()
 
   jobs:
 
@@ -100,22 +141,34 @@ stages:
 
           steps:
 
+          # --------------------------------------------------
+          # Download build artifact
+          # --------------------------------------------------
+
           - download: current
             artifact: python-app
 
-          - script: |
-              echo "Deploying python-app.zip to QA"
-              ls -R $(Pipeline.Workspace)/python-app
-            displayName: 'Deploy to QA'
+          # --------------------------------------------------
+          # Deploy to Azure App Service
+          # --------------------------------------------------
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to QA Azure App Service'
+            inputs:
+              azureSubscription: 'CHANGE_ME_AZURE_SERVICE_CONNECTION'
+              appType: 'webAppLinux'
+              appName: 'CHANGE_ME_QA_APP_SERVICE_NAME'
+              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
 
 
-# =========================
-# PROD
-# =========================
+# ============================================================
+# DEPLOY TO PROD
+# ============================================================
 
 - stage: Deploy_PROD
   displayName: Deploy to PROD
   dependsOn: Deploy_QA
+  condition: succeeded()
 
   jobs:
 
@@ -130,10 +183,21 @@ stages:
 
           steps:
 
+          # --------------------------------------------------
+          # Download build artifact
+          # --------------------------------------------------
+
           - download: current
             artifact: python-app
 
-          - script: |
-              echo "Deploying python-app.zip to PROD"
-              ls -R $(Pipeline.Workspace)/python-app
-            displayName: 'Deploy to PROD'
+          # --------------------------------------------------
+          # Deploy to Azure App Service
+          # --------------------------------------------------
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to PROD Azure App Service'
+            inputs:
+              azureSubscription: 'CHANGE_ME_AZURE_SERVICE_CONNECTION'
+              appType: 'webAppLinux'
+              appName: 'CHANGE_ME_PROD_APP_SERVICE_NAME'
+              package: '$(Pipeline.Workspace)/python-app/python-app.zip'
